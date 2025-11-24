@@ -1,0 +1,48 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+
+group = 'com.github.yohannesTz.simpleftp'
+version = '1.0-SNAPSHOT'
+
+mainClassName = 'com.github.yohannesTz.simpleftp.Main'
+
+// Configure the shadow JAR (fat JAR with all dependencies)
+shadowJar {
+    archiveBaseName.set('SimpleFTPServer')
+    archiveClassifier.set('portable')
+    archiveVersion.set('1.0')
+    manifest {
+        attributes 'Main-Class': 'com.github.yohannesTz.simpleftp.Main'
+    }
+    mergeServiceFiles()
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Apache FTP Server
+    implementation 'org.apache.ftpserver:ftpserver-core:1.2.0'
+    
+    // FlatLaf Look and Feel
+    implementation 'com.formdev:flatlaf:3.2.5'
+    
+    // Logging
+    implementation 'org.slf4j:slf4j-simple:2.0.9'
+    
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+// Configure the application run task
+run {
+    standardInput = System.in
+}
