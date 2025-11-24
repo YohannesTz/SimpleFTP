@@ -1,5 +1,6 @@
 package com.github.yohannesTz.simpleftp.server;
 
+import com.github.yohannesTz.simpleftp.model.FTPPermissions;
 import com.github.yohannesTz.simpleftp.model.ServerConfig;
 import com.github.yohannesTz.simpleftp.model.UserAccount;
 import org.apache.ftpserver.FtpServer;
@@ -76,9 +77,18 @@ public class FTPServerManager {
             }
 
             List<Authority> authorities = new ArrayList<>();
-            if (userAccount.isWritePermission()) {
-                authorities.add(new WritePermission());
+            
+            // Use granular permissions if available
+            FTPPermissions permissions = userAccount.getPermissions();
+            if (permissions.hasWriteAccess()) {
+                // Add our custom granular permission
+                authorities.add(new GranularWritePermission(permissions));
+            } else {
+                // For read-only users, still add granular permission
+                // so read/list permissions can be enforced
+                authorities.add(new GranularWritePermission(permissions));
             }
+            
             user.setAuthorities(authorities);
             user.setMaxIdleTime(userAccount.getMaxIdleTime());
 

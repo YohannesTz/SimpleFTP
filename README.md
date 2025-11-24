@@ -38,6 +38,18 @@
 </table>
 </div>
 
+## Features
+
+- **Granular Permission Management** - Control exactly what each user can do (read, write, delete, rename, create/remove directories, list)
+- **User Management** - Add, edit, and delete FTP user accounts with ease
+- **Modern UI** - Built with FlatLaf for a clean, modern look
+- **Theme Switcher** - Choose from 4 different themes (Light, Dark, IntelliJ, Darcula)
+- **Configuration Persistence** - Settings and users are automatically saved and restored
+- **Real-time Server Control** - Start/stop the server with a single click
+- **Connection Command Display** - Auto-generated FTP connection command with copy button
+- **Base Folder Management** - Organize all FTP files in one location
+- **Cross-Platform** - Works on Windows, macOS, and Linux
+
 ## Quick Start
 
 ### Prerequisites
@@ -89,9 +101,23 @@ run.bat         # Windows
 
 1. Go to the **"Users"** tab
 2. Click **"Add User"** to create new accounts
-3. Set username, password, and home directory
-4. Configure write permissions and idle timeout
-5. Click **"OK"** to save
+3. Configure:
+   - Username and password (with confirmation)
+   - Home directory (with browse button)
+   - Max idle time
+   - **Granular Permissions:**
+     - Read Files - Download files
+     - Write/Upload Files - Upload new or overwrite existing files
+     - Delete Files - Remove files
+     - Rename Files - Rename files and directories
+     - Create Directories - Make new folders
+     - Remove Directories - Delete folders
+     - List Directories - View directory contents
+4. Use **Quick Presets** for common permission configurations:
+   - **Full Access** - All permissions enabled
+   - **Read Only** - Read and list only
+   - **Upload Only** - Read, write, list, and create directories
+5. Click **"OK"** to save the user
 
 ### Connecting to Your Server
 
@@ -181,6 +207,28 @@ SimpleFTPServer/
 ```
 
 ---
+
+## Permission Management Details
+
+The application supports 7 distinct permissions that can be configured per user:
+
+| Permission           | FTP Commands        | Description                                    |
+|---------------------|---------------------|------------------------------------------------|
+| **Read Files**      | RETR, SIZE          | Download files from the server                 |
+| **Write/Upload**    | STOR, APPE          | Upload new files or overwrite existing ones    |
+| **Delete Files**    | DELE                | Remove files from the server                   |
+| **Rename**          | RNFR, RNTO          | Rename files and directories                   |
+| **Create Directory**| MKD, XMKD           | Create new directories                         |
+| **Remove Directory**| RMD, XRMD           | Delete directories                             |
+| **List**            | LIST, NLST, MLSD    | View directory contents                        |
+
+### Permission Presets
+
+For convenience, three quick presets are available:
+
+- **Full Access**: All permissions enabled - suitable for administrators
+- **Read Only**: Read and list only - suitable for viewers or downloaders
+- **Upload Only**: Read, write, list, and create directories - suitable for content uploaders
 
 ## Technology Stack
 

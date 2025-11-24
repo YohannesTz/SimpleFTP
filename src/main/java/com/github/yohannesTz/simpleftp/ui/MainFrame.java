@@ -537,18 +537,30 @@ public class MainFrame extends JFrame {
      * Sets a consistent size for buttons to ensure equal height
      */
     private void setButtonSize(JButton button) {
-        Dimension size = button.getPreferredSize();
-        size.height = 32; // Standard button height
-        button.setPreferredSize(size);
+        // Get the preferred size to ensure text fits
+        Dimension prefSize = button.getPreferredSize();
+        
+        // Set a minimum width to accommodate the text with padding
+        int minWidth = Math.max(prefSize.width + 20, 80); // Add padding and minimum width
+        int height = 32; // Standard button height
+        
+        // Set both preferred and minimum size for consistent height
+        button.setPreferredSize(new Dimension(minWidth, height));
+        button.setMinimumSize(new Dimension(minWidth, height));
     }
     
     /**
      * Sets a consistent size for combo boxes to ensure equal height
      */
     private void setButtonSize(JComboBox<?> comboBox) {
-        Dimension size = comboBox.getPreferredSize();
-        size.height = 32; // Standard height
-        comboBox.setPreferredSize(size);
+        Dimension prefSize = comboBox.getPreferredSize();
+        
+        // Ensure combo box width fits the content
+        int minWidth = Math.max(prefSize.width + 10, 100);
+        int height = 32; // Standard height
+        
+        comboBox.setPreferredSize(new Dimension(minWidth, height));
+        comboBox.setMinimumSize(new Dimension(minWidth, height));
     }
     
     private void browseBaseFolder() {

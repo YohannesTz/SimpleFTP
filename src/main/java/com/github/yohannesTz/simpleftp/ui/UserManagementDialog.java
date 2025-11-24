@@ -1,9 +1,11 @@
 package com.github.yohannesTz.simpleftp.ui;
 
+import com.github.yohannesTz.simpleftp.model.FTPPermissions;
 import com.github.yohannesTz.simpleftp.model.UserAccount;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.io.File;
 
@@ -12,14 +14,23 @@ import java.io.File;
  */
 public class UserManagementDialog extends JDialog {
     private JTextField usernameField;
-    private JPasswordField passwordField;
-    private JPasswordField confirmPasswordField;
+    private PasswordFieldWithToggle passwordField;
+    private PasswordFieldWithToggle confirmPasswordField;
     private JTextField homeDirectoryField;
     private JButton browseButton;
-    private JCheckBox writePermissionCheckBox;
+    private JCheckBox writePermissionCheckBox; // Legacy - kept for compatibility
     private JSpinner idleTimeSpinner;
     private JButton okButton;
     private JButton cancelButton;
+    
+    // Permission checkboxes
+    private JCheckBox readCheckBox;
+    private JCheckBox writeCheckBox;
+    private JCheckBox deleteCheckBox;
+    private JCheckBox renameCheckBox;
+    private JCheckBox createDirCheckBox;
+    private JCheckBox removeDirCheckBox;
+    private JCheckBox listCheckBox;
     
     private UserAccount userAccount;
     private boolean isEditMode;
@@ -41,14 +52,108 @@ public class UserManagementDialog extends JDialog {
             System.err.println("Failed to load dialog icon: " + e.getMessage());
         }
         
+        // Initialize permission checkboxes BEFORE creating UI
+        readCheckBox = new JCheckBox("Read Files");
+        writeCheckBox = new JCheckBox("Write/Upload Files");
+        deleteCheckBox = new JCheckBox("Delete Files");
+        renameCheckBox = new JCheckBox("Rename Files");
+        createDirCheckBox = new JCheckBox("Create Directories");
+        removeDirCheckBox = new JCheckBox("Remove Directories");
+        listCheckBox = new JCheckBox("List Directories");
+        
         initUI();
         
         if (user != null) {
             populateFields(user);
+        } else {
+            // Default permissions for new users
+            setReadOnly();
         }
         
         pack();
         setLocationRelativeTo(parent);
+    }
+    
+    private JPanel createPermissionsPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createEmptyBorder(10, 10, 10, 10),
+            BorderFactory.createTitledBorder(
+                BorderFactory.createEtchedBorder(),
+                "Permissions",
+                TitledBorder.LEFT,
+                TitledBorder.TOP,
+                new Font("SansSerif", Font.BOLD, 12)
+            )
+        ));
+        
+        // Permission checkboxes in a grid
+        JPanel checkboxPanel = new JPanel(new GridLayout(4, 2, 10, 5));
+        checkboxPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        
+        checkboxPanel.add(readCheckBox);
+        checkboxPanel.add(writeCheckBox);
+        checkboxPanel.add(deleteCheckBox);
+        checkboxPanel.add(renameCheckBox);
+        checkboxPanel.add(createDirCheckBox);
+        checkboxPanel.add(removeDirCheckBox);
+        checkboxPanel.add(listCheckBox);
+        checkboxPanel.add(new JLabel("")); // Empty cell for layout
+        
+        panel.add(checkboxPanel, BorderLayout.CENTER);
+        
+        // Quick permission presets
+        JPanel presetPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JButton fullAccessBtn = new JButton("Full Access");
+        JButton readOnlyBtn = new JButton("Read Only");
+        JButton uploadBtn = new JButton("Upload Only");
+        
+        setButtonSize(fullAccessBtn);
+        setButtonSize(readOnlyBtn);
+        setButtonSize(uploadBtn);
+        
+        fullAccessBtn.addActionListener(e -> setFullAccess());
+        readOnlyBtn.addActionListener(e -> setReadOnly());
+        uploadBtn.addActionListener(e -> setUploadOnly());
+        
+        presetPanel.add(new JLabel("Quick Presets:"));
+        presetPanel.add(fullAccessBtn);
+        presetPanel.add(readOnlyBtn);
+        presetPanel.add(uploadBtn);
+        
+        panel.add(presetPanel, BorderLayout.SOUTH);
+        
+        return panel;
+    }
+    
+    private void setFullAccess() {
+        readCheckBox.setSelected(true);
+        writeCheckBox.setSelected(true);
+        deleteCheckBox.setSelected(true);
+        renameCheckBox.setSelected(true);
+        createDirCheckBox.setSelected(true);
+        removeDirCheckBox.setSelected(true);
+        listCheckBox.setSelected(true);
+    }
+    
+    private void setReadOnly() {
+        readCheckBox.setSelected(true);
+        writeCheckBox.setSelected(false);
+        deleteCheckBox.setSelected(false);
+        renameCheckBox.setSelected(false);
+        createDirCheckBox.setSelected(false);
+        removeDirCheckBox.setSelected(false);
+        listCheckBox.setSelected(true);
+    }
+    
+    private void setUploadOnly() {
+        readCheckBox.setSelected(true);
+        writeCheckBox.setSelected(true);
+        deleteCheckBox.setSelected(false);
+        renameCheckBox.setSelected(false);
+        createDirCheckBox.setSelected(true);
+        removeDirCheckBox.setSelected(false);
+        listCheckBox.setSelected(true);
     }
 
     private void initUI() {
@@ -85,7 +190,7 @@ public class UserManagementDialog extends JDialog {
         gbc.gridwidth = 2;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1.0;
-        passwordField = new JPasswordField(20);
+        passwordField = new PasswordFieldWithToggle(20);
         formPanel.add(passwordField, gbc);
 
         // Confirm Password
@@ -100,7 +205,7 @@ public class UserManagementDialog extends JDialog {
         gbc.gridwidth = 2;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1.0;
-        confirmPasswordField = new JPasswordField(20);
+        confirmPasswordField = new PasswordFieldWithToggle(20);
         formPanel.add(confirmPasswordField, gbc);
 
         // Home Directory
@@ -127,17 +232,14 @@ public class UserManagementDialog extends JDialog {
         setButtonSize(browseButton);
         formPanel.add(browseButton, gbc);
 
-        // Write Permission
-        gbc.gridx = 0;
-        gbc.gridy = 4;
-        gbc.gridwidth = 3;
+        // Legacy Write Permission (hidden, kept for backward compatibility)
         writePermissionCheckBox = new JCheckBox("Allow Write Permission");
         writePermissionCheckBox.setSelected(true);
-        formPanel.add(writePermissionCheckBox, gbc);
+        writePermissionCheckBox.setVisible(false);
 
         // Max Idle Time
         gbc.gridx = 0;
-        gbc.gridy = 5;
+        gbc.gridy = 4;
         gbc.gridwidth = 1;
         formPanel.add(new JLabel("Max Idle Time (sec):"), gbc);
         
@@ -148,7 +250,11 @@ public class UserManagementDialog extends JDialog {
         idleTimeSpinner = new JSpinner(spinnerModel);
         formPanel.add(idleTimeSpinner, gbc);
 
-        mainPanel.add(formPanel, BorderLayout.CENTER);
+        mainPanel.add(formPanel, BorderLayout.NORTH);
+        
+        // Permissions Panel
+        JPanel permissionsPanel = createPermissionsPanel();
+        mainPanel.add(permissionsPanel, BorderLayout.CENTER);
 
         // Buttons panel
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
@@ -176,9 +282,16 @@ public class UserManagementDialog extends JDialog {
      * Sets a consistent size for buttons to ensure equal height
      */
     private void setButtonSize(JButton button) {
-        Dimension size = button.getPreferredSize();
-        size.height = 32; // Standard button height
-        button.setPreferredSize(size);
+        // Get the preferred size to ensure text fits
+        Dimension prefSize = button.getPreferredSize();
+        
+        // Set a minimum width to accommodate the text with padding
+        int minWidth = Math.max(prefSize.width + 20, 80); // Add padding and minimum width
+        int height = 32; // Standard button height
+        
+        // Set both preferred and minimum size for consistent height
+        button.setPreferredSize(new Dimension(minWidth, height));
+        button.setMinimumSize(new Dimension(minWidth, height));
     }
 
     private void populateFields(UserAccount user) {
@@ -189,6 +302,16 @@ public class UserManagementDialog extends JDialog {
         homeDirectoryField.setText(user.getHomeDirectory());
         writePermissionCheckBox.setSelected(user.isWritePermission());
         idleTimeSpinner.setValue(user.getMaxIdleTime());
+        
+        // Load permissions
+        FTPPermissions perms = user.getPermissions();
+        readCheckBox.setSelected(perms.isCanRead());
+        writeCheckBox.setSelected(perms.isCanWrite());
+        deleteCheckBox.setSelected(perms.isCanDelete());
+        renameCheckBox.setSelected(perms.isCanRename());
+        createDirCheckBox.setSelected(perms.isCanCreateDirectory());
+        removeDirCheckBox.setSelected(perms.isCanRemoveDirectory());
+        listCheckBox.setSelected(perms.isCanList());
     }
 
     private void browseDirectory() {
@@ -220,8 +343,10 @@ public class UserManagementDialog extends JDialog {
             return;
         }
 
-        String password = new String(passwordField.getPassword());
-        String confirmPassword = new String(confirmPasswordField.getPassword());
+        char[] passwordChars = passwordField.getPassword();
+        char[] confirmPasswordChars = confirmPasswordField.getPassword();
+        String password = new String(passwordChars);
+        String confirmPassword = new String(confirmPasswordChars);
         
         if (password.isEmpty()) {
             JOptionPane.showMessageDialog(this,
@@ -232,12 +357,19 @@ public class UserManagementDialog extends JDialog {
         }
 
         if (!password.equals(confirmPassword)) {
+            // Clear password arrays for security
+            java.util.Arrays.fill(passwordChars, ' ');
+            java.util.Arrays.fill(confirmPasswordChars, ' ');
             JOptionPane.showMessageDialog(this,
                 "Passwords do not match",
                 "Validation Error",
                 JOptionPane.ERROR_MESSAGE);
             return;
         }
+        
+        // Clear password arrays after use
+        java.util.Arrays.fill(passwordChars, ' ');
+        java.util.Arrays.fill(confirmPasswordChars, ' ');
 
         String homeDirectory = homeDirectoryField.getText().trim();
         if (homeDirectory.isEmpty()) {
@@ -269,11 +401,19 @@ public class UserManagementDialog extends JDialog {
             }
         }
 
-        boolean writePermission = writePermissionCheckBox.isSelected();
         int maxIdleTime = (Integer) idleTimeSpinner.getValue();
+        
+        // Create permissions object from checkboxes
+        FTPPermissions permissions = new FTPPermissions();
+        permissions.setCanRead(readCheckBox.isSelected());
+        permissions.setCanWrite(writeCheckBox.isSelected());
+        permissions.setCanDelete(deleteCheckBox.isSelected());
+        permissions.setCanRename(renameCheckBox.isSelected());
+        permissions.setCanCreateDirectory(createDirCheckBox.isSelected());
+        permissions.setCanRemoveDirectory(removeDirCheckBox.isSelected());
+        permissions.setCanList(listCheckBox.isSelected());
 
-        userAccount = new UserAccount(username, password, homeDirectory, 
-                                     writePermission, maxIdleTime);
+        userAccount = new UserAccount(username, password, homeDirectory, permissions, maxIdleTime);
         dispose();
     }
 
@@ -286,4 +426,3 @@ public class UserManagementDialog extends JDialog {
         return userAccount;
     }
 }
-

@@ -30,6 +30,7 @@ dependencies {
     
     // FlatLaf Look and Feel
     implementation 'com.formdev:flatlaf:3.2.5'
+    implementation 'com.formdev:flatlaf-extras:3.2.5'
     
     // Logging
     implementation 'org.slf4j:slf4j-simple:2.0.9'
