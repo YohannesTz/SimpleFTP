@@ -10,6 +10,7 @@ import org.apache.ftpserver.ftplet.FtpException;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.TitledBorder;
+import javax.swing.text.*;
 import java.awt.*;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.WindowAdapter;
@@ -35,12 +36,20 @@ public class MainFrame extends JFrame {
     private JButton startButton;
     private JButton stopButton;
     private JButton configureUsersButton;
-    private JTextArea logArea;
+    private JTextPane logPane;
+    private StyledDocument logDocument;
+    private LogCaptureAppender logCaptureAppender;
     private JLabel statusLabel;
     private DefaultListModel<UserAccount> userListModel;
     private JList<UserAccount> userList;
     private JTextField connectionCommandField;
     private JComboBox<String> themeSelector;
+    
+    // Styles for log messages
+    private Style infoStyle;
+    private Style errorStyle;
+    private Style successStyle;
+    private Style defaultStyle;
 
     public MainFrame() {
         // Load saved configuration
@@ -61,11 +70,18 @@ public class MainFrame extends JFrame {
         setupListeners();
         updateUIState(false);
         
+        // Initialize log styles
+        initializeLogStyles();
+        
+        // Start capturing console output
+        logCaptureAppender = new LogCaptureAppender(logPane);
+        logCaptureAppender.startCapture();
+        
         // Log configuration load
         if (ConfigManager.configExists()) {
-            logMessage("Configuration loaded from " + System.getProperty("user.home") + "/.simpleftp");
+            logMessage("Configuration loaded from " + System.getProperty("user.home") + "/.simpleftp", "info");
         } else {
-            logMessage("Using default configuration");
+            logMessage("Using default configuration", "info");
         }
     }
 
@@ -200,13 +216,13 @@ public class MainFrame extends JFrame {
     private void resetToDefaults() {
         try {
             ConfigManager.deleteConfig();
-            logMessage("Configuration reset to defaults");
+            logMessage("Configuration reset to defaults", "success");
             JOptionPane.showMessageDialog(this,
                 "Configuration has been reset to defaults.\nPlease restart the application.",
                 "Reset Complete",
                 JOptionPane.INFORMATION_MESSAGE);
         } catch (Exception e) {
-            logMessage("Failed to reset configuration: " + e.getMessage());
+            logMessage("Failed to reset configuration: " + e.getMessage(), "error");
             JOptionPane.showMessageDialog(this,
                 "Failed to reset configuration: " + e.getMessage(),
                 "Error",
@@ -278,7 +294,7 @@ public class MainFrame extends JFrame {
             String url = "https://github.com/YohannesTz/SimpleFTP";
             if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
                 Desktop.getDesktop().browse(new java.net.URI(url));
-                logMessage("Opened GitHub repository in browser");
+                logMessage("Opened GitHub repository in browser", "success");
             } else {
                 // Fallback: copy to clipboard
                 StringSelection selection = new StringSelection(url);
@@ -289,7 +305,7 @@ public class MainFrame extends JFrame {
                     JOptionPane.INFORMATION_MESSAGE);
             }
         } catch (Exception e) {
-            logMessage("Failed to open GitHub: " + e.getMessage());
+            logMessage("Failed to open GitHub: " + e.getMessage(), "error");
             JOptionPane.showMessageDialog(this,
                 "Could not open browser. Visit:\nhttps://github.com/YohannesTz/SimpleFTP",
                 "GitHub",
@@ -306,7 +322,7 @@ public class MainFrame extends JFrame {
         themeSelector.addActionListener(e -> {
             String selectedTheme = (String) themeSelector.getSelectedItem();
             ThemeManager.applyTheme(selectedTheme);
-            logMessage("Theme changed to: " + selectedTheme);
+            logMessage("Theme changed to: " + selectedTheme, "info");
             saveConfiguration();
         });
         setButtonSize(themeSelector);
@@ -515,20 +531,27 @@ public class MainFrame extends JFrame {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
-        logArea = new JTextArea();
-        logArea.setEditable(false);
-        logArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        JScrollPane scrollPane = new JScrollPane(logArea);
+        logPane = new JTextPane();
+        logPane.setEditable(false);
+        logPane.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        logDocument = logPane.getStyledDocument();
+        JScrollPane scrollPane = new JScrollPane(logPane);
         panel.add(scrollPane, BorderLayout.CENTER);
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton clearButton = new JButton("Clear Log");
-        clearButton.addActionListener(e -> logArea.setText(""));
+        clearButton.addActionListener(e -> {
+            try {
+                logDocument.remove(0, logDocument.getLength());
+            } catch (BadLocationException ex) {
+                ex.printStackTrace();
+            }
+        });
         setButtonSize(clearButton);
         buttonPanel.add(clearButton);
         panel.add(buttonPanel, BorderLayout.SOUTH);
 
-        logMessage("FTP Server initialized");
+        logMessage("FTP Server initialized", "info");
 
         return panel;
     }
@@ -598,7 +621,7 @@ public class MainFrame extends JFrame {
         String command = connectionCommandField.getText();
         StringSelection selection = new StringSelection(command);
         Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
-        logMessage("Connection command copied to clipboard: " + command);
+        logMessage("Connection command copied to clipboard: " + command, "success");
         JOptionPane.showMessageDialog(this,
             "Command copied to clipboard:\n" + command,
             "Copied",
@@ -631,10 +654,12 @@ public class MainFrame extends JFrame {
                     if (result == JOptionPane.YES_OPTION) {
                         serverManager.stopServer();
                         saveConfiguration();
+                        cleanup();
                         System.exit(0);
                     }
                 } else {
                     saveConfiguration();
+                    cleanup();
                     System.exit(0);
                 }
             }
@@ -688,13 +713,13 @@ public class MainFrame extends JFrame {
                 "Failed to start server: " + ex.getMessage(),
                 "Error",
                 JOptionPane.ERROR_MESSAGE);
-            logMessage("ERROR: " + ex.getMessage());
+            logMessage("ERROR: " + ex.getMessage(), "error");
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this,
                 "Error: " + ex.getMessage(),
                 "Error",
                 JOptionPane.ERROR_MESSAGE);
-            logMessage("ERROR: " + ex.getMessage());
+            logMessage("ERROR: " + ex.getMessage(), "error");
         }
     }
 
@@ -721,11 +746,70 @@ public class MainFrame extends JFrame {
         }
     }
 
+    /**
+     * Initialize color styles for log messages
+     */
+    private void initializeLogStyles() {
+        // INFO style - Blue
+        infoStyle = logDocument.addStyle("INFO_STYLE", null);
+        StyleConstants.setForeground(infoStyle, new Color(33, 150, 243)); // Material Blue
+        
+        // ERROR style - Red
+        errorStyle = logDocument.addStyle("ERROR_STYLE", null);
+        StyleConstants.setForeground(errorStyle, new Color(244, 67, 54)); // Material Red
+        StyleConstants.setBold(errorStyle, true);
+        
+        // SUCCESS style - Green
+        successStyle = logDocument.addStyle("SUCCESS_STYLE", null);
+        StyleConstants.setForeground(successStyle, new Color(76, 175, 80)); // Material Green
+        StyleConstants.setBold(successStyle, true);
+        
+        // Default style
+        defaultStyle = logDocument.addStyle("DEFAULT_STYLE", null);
+        StyleConstants.setForeground(defaultStyle, UIManager.getColor("TextPane.foreground"));
+    }
+    
+    /**
+     * Log a message with color coding based on type
+     * @param message The message to log
+     * @param type The message type: "info", "error", "success", or "default"
+     */
+    private void logMessage(String message, String type) {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                String timestamp = sdf.format(new Date());
+                String fullMessage = "[" + timestamp + "] " + message + "\n";
+                
+                Style style;
+                switch (type.toLowerCase()) {
+                    case "info":
+                        style = infoStyle;
+                        break;
+                    case "error":
+                        style = errorStyle;
+                        break;
+                    case "success":
+                        style = successStyle;
+                        break;
+                    default:
+                        style = defaultStyle;
+                        break;
+                }
+                
+                logDocument.insertString(logDocument.getLength(), fullMessage, style);
+                logPane.setCaretPosition(logDocument.getLength());
+            } catch (BadLocationException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+    
+    /**
+     * Legacy method for backward compatibility - defaults to info style
+     */
     private void logMessage(String message) {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        String timestamp = sdf.format(new Date());
-        logArea.append("[" + timestamp + "] " + message + "\n");
-        logArea.setCaretPosition(logArea.getDocument().getLength());
+        logMessage(message, "info");
     }
 
     private void addUser() {
@@ -736,7 +820,7 @@ public class MainFrame extends JFrame {
         if (newUser != null) {
             config.addUser(newUser);
             userListModel.addElement(newUser);
-            logMessage("User added: " + newUser.getUsername());
+            logMessage("User added: " + newUser.getUsername(), "success");
             saveConfiguration();
         }
     }
@@ -759,7 +843,7 @@ public class MainFrame extends JFrame {
             config.updateUser(selectedUser, updatedUser);
             int index = userListModel.indexOf(selectedUser);
             userListModel.set(index, updatedUser);
-            logMessage("User updated: " + updatedUser.getUsername());
+            logMessage("User updated: " + updatedUser.getUsername(), "success");
             saveConfiguration();
         }
     }
@@ -782,7 +866,7 @@ public class MainFrame extends JFrame {
         if (result == JOptionPane.YES_OPTION) {
             config.removeUser(selectedUser);
             userListModel.removeElement(selectedUser);
-            logMessage("User deleted: " + selectedUser.getUsername());
+            logMessage("User deleted: " + selectedUser.getUsername(), "success");
             saveConfiguration();
         }
     }
@@ -813,9 +897,18 @@ public class MainFrame extends JFrame {
                 (String) themeSelector.getSelectedItem() : "Flat Light";
             
             ConfigManager.saveConfig(config, currentTheme);
-            logMessage("Configuration saved");
+            logMessage("Configuration saved", "success");
         } catch (Exception e) {
-            logMessage("Failed to save configuration: " + e.getMessage());
+            logMessage("Failed to save configuration: " + e.getMessage(), "error");
+        }
+    }
+    
+    /**
+     * Cleanup resources before exiting
+     */
+    private void cleanup() {
+        if (logCaptureAppender != null) {
+            logCaptureAppender.stopCapture();
         }
     }
 
