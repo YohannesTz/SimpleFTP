@@ -158,6 +158,23 @@ public class MainFrame extends JFrame {
         // Help menu
         JMenu helpMenu = new JMenu("Help");
         
+        // GitHub menu item with icon
+        JMenuItem githubItem = new JMenuItem("View on GitHub");
+        try {
+            java.net.URL iconURL = getClass().getResource("/github-48.png");
+            if (iconURL != null) {
+                ImageIcon originalIcon = new ImageIcon(iconURL);
+                Image scaledImage = originalIcon.getImage().getScaledInstance(16, 16, Image.SCALE_SMOOTH);
+                githubItem.setIcon(new ImageIcon(scaledImage));
+            }
+        } catch (Exception e) {
+            // Icon loading failed, continue without icon
+        }
+        githubItem.addActionListener(e -> openGitHub());
+        helpMenu.add(githubItem);
+        
+        helpMenu.addSeparator();
+        
         JMenuItem aboutItem = new JMenuItem("About");
         aboutItem.addActionListener(e -> showAboutDialog());
         helpMenu.add(aboutItem);
@@ -198,14 +215,86 @@ public class MainFrame extends JFrame {
     }
     
     private void showAboutDialog() {
-        JOptionPane.showMessageDialog(this,
+        // Create custom panel with GitHub link
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        
+        // Add icon
+        try {
+            java.net.URL iconURL = getClass().getResource("/ftp-server-96.png");
+            if (iconURL != null) {
+                ImageIcon icon = new ImageIcon(iconURL);
+                JLabel iconLabel = new JLabel(icon);
+                iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
+                panel.add(iconLabel, BorderLayout.NORTH);
+            }
+        } catch (Exception e) {
+            // Icon loading failed, continue without icon
+        }
+        
+        // Info text
+        JTextArea textArea = new JTextArea();
+        textArea.setText(
             "Simple FTP Server Manager\n" +
             "Version 1.0\n\n" +
             "A modern FTP server with user management,\n" +
             "configurable settings, and theme support.\n\n" +
-            "Package: com.github.yohannesTz.simpleftp",
-            "About",
-            JOptionPane.INFORMATION_MESSAGE);
+            "Package: com.github.yohannesTz.simpleftp\n\n" +
+            "GitHub: https://github.com/YohannesTz/SimpleFTP"
+        );
+        textArea.setEditable(false);
+        textArea.setOpaque(false);
+        textArea.setFont(UIManager.getFont("Label.font"));
+        textArea.setAlignmentX(Component.CENTER_ALIGNMENT);
+        panel.add(textArea, BorderLayout.CENTER);
+        
+        // GitHub button
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        JButton githubButton = new JButton("Open GitHub Repository");
+        try {
+            java.net.URL iconURL = getClass().getResource("/github-48.png");
+            if (iconURL != null) {
+                ImageIcon originalIcon = new ImageIcon(iconURL);
+                Image scaledImage = originalIcon.getImage().getScaledInstance(16, 16, Image.SCALE_SMOOTH);
+                githubButton.setIcon(new ImageIcon(scaledImage));
+            }
+        } catch (Exception e) {
+            // Icon loading failed, continue without icon
+        }
+        githubButton.addActionListener(e -> openGitHub());
+        setButtonSize(githubButton);
+        buttonPanel.add(githubButton);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+        
+        JOptionPane.showMessageDialog(this, panel, "About Simple FTP Server", 
+            JOptionPane.PLAIN_MESSAGE);
+    }
+    
+    /**
+     * Opens the GitHub repository in the default browser
+     */
+    private void openGitHub() {
+        try {
+            String url = "https://github.com/YohannesTz/SimpleFTP";
+            if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+                Desktop.getDesktop().browse(new java.net.URI(url));
+                logMessage("Opened GitHub repository in browser");
+            } else {
+                // Fallback: copy to clipboard
+                StringSelection selection = new StringSelection(url);
+                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
+                JOptionPane.showMessageDialog(this,
+                    "GitHub URL copied to clipboard:\n" + url,
+                    "GitHub",
+                    JOptionPane.INFORMATION_MESSAGE);
+            }
+        } catch (Exception e) {
+            logMessage("Failed to open GitHub: " + e.getMessage());
+            JOptionPane.showMessageDialog(this,
+                "Could not open browser. Visit:\nhttps://github.com/YohannesTz/SimpleFTP",
+                "GitHub",
+                JOptionPane.INFORMATION_MESSAGE);
+        }
     }
     
     private JPanel createThemePanel() {
